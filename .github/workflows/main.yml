@@ -1,0 +1,41 @@
+name: Build ANiYA AI APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Extract Android project
+        run: |
+          mkdir -p build-src
+          unzip -q ANiya_AI_Android_Studio_Project.zip -d build-src
+          PROJECT_DIR="$(dirname "$(find build-src -type f -name gradlew | head -n 1)")"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Project: $PROJECT_DIR"
+
+      - name: Configure Gemini
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > "$PROJECT_DIR/local.properties"
+          echo "GEMINI_API_KEY=$GEMINI_API_KEY" >> "$PROJECT_DIR/local.properties"
+
+      - name: Build APK
+        run: |
+          cd "$PROJECT_DIR"
+          chmod +x ./gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ANiYA-AI-APK
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
